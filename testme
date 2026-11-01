@@ -371,7 +371,7 @@ int main(void)
                 project_name = args.args[0]
                 self.install_infrastructure(project_name)
             
-            elif len(args.args) >= 2:
+            elif args.command and len(args.args) >= 1:
                 project_name = args.command
                 path = args.args[0]
                 success = self.run_tests(project_name, path)
