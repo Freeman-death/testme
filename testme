@@ -35,8 +35,7 @@ class TestMeCLI:
                 'test_asan_cmd': './tests/run_tests.sh asan',
                 'requirements': [
                     'gcc',
-                    'make',
-                    'valgrind'  # optional
+                    'make'
                 ]
             }
         }
@@ -66,13 +65,23 @@ class TestMeCLI:
             return False
         
         missing = []
+        optional_missing = []
         for req in info['requirements']:
             if subprocess.run(['which', req], capture_output=True).returncode != 0:
                 missing.append(req)
         
+        # Check for optional tools
+        optional_tools = ['valgrind']
+        for tool in optional_tools:
+            if subprocess.run(['which', tool], capture_output=True).returncode != 0:
+                optional_missing.append(tool)
+        
         if missing:
             print(f"Missing required tools: {', '.join(missing)}")
             return False
+        
+        if optional_missing:
+            print(f"⚠️  Optional tools not found (some tests may be skipped): {', '.join(optional_missing)}")
         
         return True
     
