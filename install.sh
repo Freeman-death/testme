@@ -13,8 +13,8 @@ echo "Installing TestMe CLI..."
 # Create bin directory
 mkdir -p "$HOME/.local/bin"
 
-# Download testme script
-curl -sSL "https://raw.githubusercontent.com/AyoubMzian-Dev/testme/main/testme" -o "$HOME/.local/bin/testme"
+# Download testme script (use API to avoid caching issues)
+curl -sSL "https://api.github.com/repos/AyoubMzian-Dev/testme/contents/testme?ref=main" | python3 -c "import sys,json,base64; d=json.load(sys.stdin); open('$HOME/.local/bin/testme','wb').write(base64.b64decode(d['content']))"
 chmod +x "$HOME/.local/bin/testme"
 
 # Add to PATH if not already there

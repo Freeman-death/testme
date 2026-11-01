@@ -412,18 +412,23 @@ int main(void)
             elif args.command == 'update':
                 print("🔄 Updating TestMe CLI...")
                 import subprocess
-                url = "https://raw.githubusercontent.com/AyoubMzian-Dev/testme/main/testme"
                 try:
                     result = subprocess.run(
-                        ["curl", "-sSL", url, "-o", "/tmp/testme_new"],
+                        ["curl", "-sSL", "https://api.github.com/repos/AyoubMzian-Dev/testme/contents/testme?ref=main", "-o", "/tmp/testme_api.json"],
                         capture_output=True,
                         text=True
                     )
                     if result.returncode == 0:
+                        import json, base64
+                        with open("/tmp/testme_api.json") as f:
+                            d = json.load(f)
+                        with open("/tmp/testme_new", "wb") as f:
+                            f.write(base64.b64decode(d["content"]))
                         import shutil
                         shutil.move("/tmp/testme_new", sys.argv[0])
                         os.chmod(sys.argv[0], 0o755)
                         print("✅ TestMe updated successfully!")
+                        return 0
                     else:
                         print(f"❌ Update failed: {result.stderr}")
                         return 1
