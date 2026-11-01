@@ -217,6 +217,8 @@ class TestMeCLI:
                     )
                     if result.returncode == 0:
                         print("✅ Library compiles successfully")
+                        # Clean up .o files after testing
+                        subprocess.run(["make", "clean"], capture_output=True, text=True)
                         print(f"\n🎉 {project_name} structure and compilation PASSED")
                         return True
                     else:
@@ -237,6 +239,8 @@ class TestMeCLI:
                     capture_output=True,
                     text=True
                 )
+                # Clean up .o files after testing
+                subprocess.run(["make", "clean"], capture_output=True, text=True)
             
             print(result.stdout)
             if result.stderr:
