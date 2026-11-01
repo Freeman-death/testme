@@ -425,8 +425,10 @@ int main(void)
                         with open("/tmp/testme_new", "wb") as f:
                             f.write(base64.b64decode(d["content"]))
                         import shutil
-                        shutil.move("/tmp/testme_new", sys.argv[0])
-                        os.chmod(sys.argv[0], 0o755)
+                        import os as _os
+                        target = _os.path.expanduser("~/.local/bin/testme")
+                        shutil.move("/tmp/testme_new", target)
+                        _os.chmod(target, 0o755)
                         print("✅ TestMe updated successfully!")
                         return 0
                     else:
