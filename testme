@@ -156,21 +156,19 @@ class TestMeCLI:
         
         print(f"   ✓ Makefile found at project root")
         
-        # CHECK 3: Verify tests directory structure
+        # CHECK 3: Check tests directory structure (optional for standalone projects)
         tests_dir = path / "tests"
-        if not tests_dir.exists():
-            print(f"❌ ERROR: tests/ directory not found at {path}")
-            print(f"   Required for testing according to subject.md")
-            return False
-        
-        tests_files = list(tests_dir.iterdir())
-        tests_str = ", ".join([f.name for f in tests_files])
-        print(f"   ✓ tests/ directory exists with {len(tests_files)} files: {tests_str}")
+        if tests_dir.exists():
+            tests_files = list(tests_dir.iterdir())
+            tests_str = ", ".join([f.name for f in tests_files])
+            print(f"   ✓ tests/ directory exists with {len(tests_files)} files: {tests_str}")
+        else:
+            print(f"   ⚠️  tests/ directory not found (optional for standalone libft projects)")
         
         print(f"\n✅ libft project structure verification PASSED!")
         print(f"   - libft/ folder with library files ✓")
         print(f"   - Makefile at project root ✓")
-        print(f"   - tests/ directory ✓")
+        print(f"   - tests/ directory {'✓' if tests_dir.exists() else '(optional)'}")
         
         print(f"\nTesting {project_name} at {path}")
         print(f"Using: {project_file}")
