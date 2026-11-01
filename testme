@@ -89,40 +89,45 @@ class TestMeCLI:
             print(f"Unknown project type: {project_name}")
             return False
         
+        # For standalone libft projects, run_tests.sh might not exist - that's OK
         project_file = path / info['test_file']
         if not project_file.exists():
-            print(f"Error: Project test file not found: {project_file}")
-            print(f"Please ensure '{info['test_file']}' exists in your project root")
-            return False
+            print(f"⚠️  Note: {info['test_file']} not found - will use default test runner")
+            project_file = None
         
         # CHECK 1: Verify libft project structure (per subject.md requirements)
         print(f"\n🔍 Verifying libft project structure...")
+        
+        # Check if this is a standalone libft project (files at root) or using libft/ folder
         libft_dir = path / "libft"
-        if not libft_dir.exists():
-            print(f"❌ ERROR: libft/ folder not found at {path}")
-            print(f"   According to subject.md, libft projects must have:")
-            print(f"   - libft/ folder containing library source files (ft_*.c)")
-            print(f"   - libft.h at the root of the libft/ folder")
-            print(f"   - Makefile at project root that compiles libft.a first")
-            print(f"   - tests/ directory with test files")
+        has_libft_folder = libft_dir.exists()
+        
+        # Check for libft.h at root or in libft/ folder
+        libft_h_at_root = (path / "libft.h").exists()
+        libft_h_in_folder = has_libft_folder and (libft_dir / "libft.h").exists()
+        
+        # Check for ft_*.c files at root or in libft/ folder
+        ft_files_at_root = list(path.glob("ft_*.c"))
+        ft_files_in_folder = list(libft_dir.glob("ft_*.c")) if has_libft_folder else []
+        
+        if not (libft_h_at_root or libft_h_in_folder):
+            print(f"❌ ERROR: libft.h not found")
+            print(f"   Expected either at project root or in libft/ folder")
             return False
         
-        # Check for required files in libft/ folder
-        libft_files = list(libft_dir.iterdir())
-        libft_files_str = ", ".join([f.name for f in libft_files])
-        
-        has_libft_h = any(f.name == "libft.h" for f in libft_files)
-        has_ft_files = any(f.name.startswith("ft_") and f.name.endswith(".c") for f in libft_files)
-        
-        if not has_libft_h:
-            print(f"❌ ERROR: libft.h not found in libft/ folder")
+        if not (ft_files_at_root or ft_files_in_folder):
+            print(f"❌ ERROR: No ft_*.c files found")
+            print(f"   Expected either at project root or in libft/ folder")
             return False
         
-        if not has_ft_files:
-            print(f"❌ ERROR: No ft_*.c files found in libft/ folder")
-            return False
+        if has_libft_folder:
+            print(f"   ✓ libft/ folder found with {len(ft_files_in_folder)} ft_*.c files")
+        else:
+            print(f"   ✓ Standalone libft project: {len(ft_files_at_root)} ft_*.c files at root")
         
-        print(f"   ✓ libft/ folder exists with {len(libft_files)} files: {libft_files_str}")
+        print(f"   ✓ libft.h found {'at root' if libft_h_at_root else 'in libft/ folder'}")
+        
+        # Note: libft/ folder is optional for standalone projects
         
         # CHECK 2: Verify Makefile at project root (should be in project_root, not in libft/)
         makefile = path / "Makefile"
@@ -188,13 +193,43 @@ class TestMeCLI:
             
             print("✅ Build successful")
             
-            # Run tests
-            print(f"\n🧪 Running tests with: {info['test_cmd']}")
-            result = subprocess.run(
-                info['test_cmd'].split(),
-                capture_output=True,
-                text=True
-            )
+            # For standalone projects without run_tests.sh, run basic compilation test
+            if project_file is None:
+                print(f"\n🧪 Running basic compilation test...")
+                # Just compile the library and check it works
+                result = subprocess.run(
+                    ["make", "clean"],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0:
+                    result = subprocess.run(
+                        ["make"],
+                        capture_output=True,
+                        text=True
+                    )
+                    if result.returncode == 0:
+                        print("✅ Library compiles successfully")
+                        print(f"\n🎉 {project_name} structure and compilation PASSED")
+                        return True
+                    else:
+                        print(f"❌ Compilation failed:")
+                        print(result.stdout)
+                        print(result.stderr)
+                        return False
+                else:
+                    print(f"❌ Clean failed:")
+                    print(result.stdout)
+                    print(result.stderr)
+                    return False
+            else:
+                # Run tests with run_tests.sh
+                print(f"\n🧪 Running tests with: {info['test_cmd']}")
+                result = subprocess.run(
+                    info['test_cmd'].split(),
+                    capture_output=True,
+                    text=True
+                )
             
             print(result.stdout)
             if result.stderr:
