@@ -407,14 +407,22 @@ int main(void)
             
             elif args.command == 'update':
                 print("🔄 Updating TestMe CLI...")
-                import urllib.request
+                import subprocess
                 url = "https://raw.githubusercontent.com/AyoubMzian-Dev/testme/main/testme"
                 try:
-                    urllib.request.urlretrieve(url, "/tmp/testme_new")
-                    import shutil
-                    shutil.move("/tmp/testme_new", sys.argv[0])
-                    os.chmod(sys.argv[0], 0o755)
-                    print("✅ TestMe updated successfully!")
+                    result = subprocess.run(
+                        ["curl", "-sSL", url, "-o", "/tmp/testme_new"],
+                        capture_output=True,
+                        text=True
+                    )
+                    if result.returncode == 0:
+                        import shutil
+                        shutil.move("/tmp/testme_new", sys.argv[0])
+                        os.chmod(sys.argv[0], 0o755)
+                        print("✅ TestMe updated successfully!")
+                    else:
+                        print(f"❌ Update failed: {result.stderr}")
+                        return 1
                 except Exception as e:
                     print(f"❌ Update failed: {e}")
                     return 1
