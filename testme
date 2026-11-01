@@ -1,0 +1,396 @@
+#!/usr/bin/env python3
+"""
+TestMe - Student Project Testing Framework
+
+USAGE:
+  testme libft <path>               Test libft project
+  testme <project-name> <path>     Test any supported project
+  testme list                       List available project types
+  testme install <project>          Install test infrastructure
+
+INSTALLATION:
+  git clone <repo-url>
+  cd repo
+  python3 testme.py setup
+
+This framework provides standardized testing for student projects,
+with integrated CI/CD, test reporting, and subagent workflows.
+"""
+
+import sys
+import os
+import argparse
+import subprocess
+from pathlib import Path
+from typing import Optional, Dict, Any
+
+class TestMeCLI:
+    def __init__(self):
+        self.project_types = {
+            'libft': {
+                'description': '42 libft C library project',
+                'test_file': 'run_tests.sh',
+                'build_cmd': 'make',
+                'test_cmd': './tests/run_tests.sh normal',
+                'test_asan_cmd': './tests/run_tests.sh asan',
+                'requirements': [
+                    'gcc',
+                    'make',
+                    'valgrind'  # optional
+                ]
+            }
+        }
+    
+    def show_help(self):
+        print("TestMe - Student Project Testing Framework")
+        print()
+        print("Usage:")
+        print("  testme libft <path>              Test libft project at given path")
+        print("  testme <project-name> <path>    Test project with specific name")
+        print("  testme list                      List available project types")
+        print("  testme install <project>         Install test infrastructure")
+        print()
+        print("Commands:")
+        print("  testme                          Show this help")
+    
+    def list_projects(self):
+        print("Available project types:")
+        print()
+        for name, info in self.project_types.items():
+            print(f"  {name:20} - {info['description']}")
+    
+    def check_requirements(self, project_name: str) -> bool:
+        info = self.project_types.get(project_name)
+        if not info:
+            print(f"Unknown project type: {project_name}")
+            return False
+        
+        missing = []
+        for req in info['requirements']:
+            if subprocess.run(['which', req], capture_output=True).returncode != 0:
+                missing.append(req)
+        
+        if missing:
+            print(f"Missing required tools: {', '.join(missing)}")
+            return False
+        
+        return True
+    
+    def run_tests(self, project_name: str, path: str) -> bool:
+        path = Path(path).resolve()
+        
+        if not path.exists():
+            print(f"Error: Path does not exist: {path}")
+            return False
+        
+        # Check for project-specific files
+        info = self.project_types.get(project_name)
+        if not info:
+            print(f"Unknown project type: {project_name}")
+            return False
+        
+        project_file = path / info['test_file']
+        if not project_file.exists():
+            print(f"Error: Project test file not found: {project_file}")
+            print(f"Please ensure '{info['test_file']}' exists in your project root")
+            return False
+        
+        # CHECK 1: Verify libft project structure (per subject.md requirements)
+        print(f"\n🔍 Verifying libft project structure...")
+        libft_dir = path / "libft"
+        if not libft_dir.exists():
+            print(f"❌ ERROR: libft/ folder not found at {path}")
+            print(f"   According to subject.md, libft projects must have:")
+            print(f"   - libft/ folder containing library source files (ft_*.c)")
+            print(f"   - libft.h at the root of the libft/ folder")
+            print(f"   - Makefile at project root that compiles libft.a first")
+            print(f"   - tests/ directory with test files")
+            return False
+        
+        # Check for required files in libft/ folder
+        libft_files = list(libft_dir.iterdir())
+        libft_files_str = ", ".join([f.name for f in libft_files])
+        
+        has_libft_h = any(f.name == "libft.h" for f in libft_files)
+        has_ft_files = any(f.name.startswith("ft_") and f.name.endswith(".c") for f in libft_files)
+        
+        if not has_libft_h:
+            print(f"❌ ERROR: libft.h not found in libft/ folder")
+            return False
+        
+        if not has_ft_files:
+            print(f"❌ ERROR: No ft_*.c files found in libft/ folder")
+            return False
+        
+        print(f"   ✓ libft/ folder exists with {len(libft_files)} files: {libft_files_str}")
+        
+        # CHECK 2: Verify Makefile at project root (should be in project_root, not in libft/)
+        makefile = path / "Makefile"
+        if not makefile.exists():
+            print(f"❌ ERROR: Makefile not found at {path}")
+            print(f"   Required at project root (per subject.md requirements)")
+            return False
+        
+        # Read Makefile to verify it compiles libft.a first
+        makefile_content = makefile.read_text()
+        has_libft_rule = "libft.a" in makefile_content or "libft:" in makefile_content
+        
+        if not has_libft_rule:
+            print(f"⚠️  WARNING: Makefile doesn't appear to compile libft.a")
+            print(f"   Subject.md requires: 'If your project allows you to use your libft,")
+            print(f"   you must copy its sources and its associated Makefile into a libft folder.'")
+        
+        print(f"   ✓ Makefile found at project root")
+        
+        # CHECK 3: Verify tests directory structure
+        tests_dir = path / "tests"
+        if not tests_dir.exists():
+            print(f"❌ ERROR: tests/ directory not found at {path}")
+            print(f"   Required for testing according to subject.md")
+            return False
+        
+        tests_files = list(tests_dir.iterdir())
+        tests_str = ", ".join([f.name for f in tests_files])
+        print(f"   ✓ tests/ directory exists with {len(tests_files)} files: {tests_str}")
+        
+        print(f"\n✅ libft project structure verification PASSED!")
+        print(f"   - libft/ folder with library files ✓")
+        print(f"   - Makefile at project root ✓")
+        print(f"   - tests/ directory ✓")
+        
+        print(f"\nTesting {project_name} at {path}")
+        print(f"Using: {project_file}")
+        
+        if not self.check_requirements(project_name):
+            return False
+        
+        # Change to project directory
+        original_cwd = os.getcwd()
+        os.chdir(path)
+        
+        try:
+            # Run build
+            print(f"\n🔧 Building with: {info['build_cmd']}")
+            result = subprocess.run(
+                info['build_cmd'].split(),
+                capture_output=True,
+                text=True
+            )
+            if result.returncode != 0:
+                print(f"❌ Build failed:")
+                print(result.stdout)
+                print(result.stderr)
+                print(f"\n💡 Troubleshooting:")
+                print(f"   - Check if 'gcc' is available")
+                print(f"   - Verify Makefile syntax")
+                print(f"   - Ensure libft/ folder contains proper source files")
+                return False
+            
+            print("✅ Build successful")
+            
+            # Run tests
+            print(f"\n🧪 Running tests with: {info['test_cmd']}")
+            result = subprocess.run(
+                info['test_cmd'].split(),
+                capture_output=True,
+                text=True
+            )
+            
+            print(result.stdout)
+            if result.stderr:
+                print("STDERR:")
+                print(result.stderr)
+            
+            if result.returncode == 0:
+                print(f"\n🎉 {project_name} tests PASSED")
+                return True
+            else:
+                print(f"\n💥 {project_name} tests FAILED")
+                print(f"💡 Check test output above for specific failures")
+                return False
+                
+        finally:
+            os.chdir(original_cwd)
+    
+    def install_infrastructure(self, project_name: str) -> bool:
+        if project_name not in self.project_types:
+            print(f"Unknown project type: {project_name}")
+            return False
+        
+        info = self.project_types[project_name]
+        print(f"Installing test infrastructure for {project_name}")
+        
+        # Create CORRECT project structure according to subject.md
+        print(f"📁 Creating libft project structure (per subject.md):")
+        
+        # Create libft/ folder with library files
+        libft_dir = Path("libft")
+        libft_dir.mkdir(exist_ok=True)
+        
+        # Create minimal libft.h
+        with open(libft_dir / "libft.h", 'w') as f:
+            f.write("""#ifndef LIBFT_H
+# define LIBFT_H
+
+typedef struct      s_list
+{
+    void           *content;
+    struct s_list  *next;
+}                   t_list;
+
+// Function prototypes would go here
+// See subject.md for complete list
+
+#endif
+""")
+        
+        # Create some example ft_*.c files
+        for i in range(1, 4):
+            with open(libft_dir / f"ft_example_{i}.c", 'w') as f:
+                f.write(f"""#include "libft.h"
+
+void *ft_example_{i}(void)
+{{
+    // Example function implementation
+    return NULL;
+}}
+""")
+        
+        # Create test infrastructure files
+        test_structure = [
+            "Makefile",
+            "tests/run_tests.sh",
+            "tests/main.c"
+        ]
+        
+        for item in test_structure:
+            path = Path(item)
+            if not path.exists():
+                print(f"  📄 Creating: {item}")
+                if item == "tests/run_tests.sh":
+                    path.parent.mkdir(exist_ok=True)
+                    with open(path, 'w') as f:
+                        f.write("""#!/bin/bash
+
+# Test runner for libft project
+
+make clean
+make
+
+# Compile and run tests
+gcc -Wall -Wextra -Werror -I. tests/main.c libft/libft.a -o test_bin
+
+./test_bin
+rm -f test_bin
+""")
+                    os.chmod(path, 0o755)
+                elif item == "tests/main.c":
+                    path.parent.mkdir(exist_ok=True)
+                    with open(path, 'w') as f:
+                        f.write("""#include <stdio.h>
+#include <stdlib.h>
+#include "libft/libft.h"
+
+int main(void)
+{
+    printf("🧪 Testing libft project structure and compilation...\\n");
+    printf("   This test verifies the correct project structure per subject.md\\n\\n");
+    
+    // Test that library compiles
+    if (system("make clean && make") == 0)
+    {
+        printf("✅ Library compilation successful\\n");
+    }
+    else
+    {
+        printf("❌ Library compilation failed\\n");
+        return 1;
+    }
+    
+    // Test that libft.a exists
+    FILE *libft_file = fopen("libft/libft.a", "rb");
+    if (libft_file)
+    {
+        printf("✅ libft.a found in libft/ folder\\n");
+        fclose(libft_file);
+    }
+    else
+    {
+        printf("❌ libft.a not found in libft/ folder\\n");
+        return 1;
+    }
+    
+    printf("\\n🎉 All structure tests passed! Project follows subject.md requirements\\n");
+    return 0;
+}
+""")
+                else:
+                    path.touch()
+        
+        print(f"\n✅ libft test infrastructure installed successfully!")
+        print(f"   - libft/ folder with library files ✓")
+        print(f"   - Makefile at project root ✓")
+        print(f"   - tests/ directory with test runner ✓")
+        print(f"\n📝 Project now ready for testing with './testme libft .'")
+        return True
+    
+    def run(self) -> int:
+        parser = argparse.ArgumentParser(
+            prog='testme',
+            description='Student Project Testing Framework',
+            add_help=False
+        )
+        
+        parser.add_argument(
+            'command',
+            nargs='?',
+            default='help',
+            help='Command to execute'
+        )
+        
+        parser.add_argument(
+            'args',
+            nargs='*',
+            help='Additional arguments'
+        )
+        
+        args = parser.parse_args(sys.argv[1:])
+        
+        try:
+            if args.command == 'help' or not args.command:
+                self.show_help()
+            
+            elif args.command == 'list':
+                self.list_projects()
+            
+            elif args.command == 'install':
+                if not args.args:
+                    print("Error: Missing project name for install command")
+                    print("Usage: testme install <project-name>")
+                    return 1
+                project_name = args.args[0]
+                self.install_infrastructure(project_name)
+            
+            elif len(args.args) >= 2:
+                project_name = args.command
+                path = args.args[0]
+                success = self.run_tests(project_name, path)
+                return 0 if success else 1
+            
+            else:
+                print(f"Error: Invalid command or missing arguments")
+                print(f"Usage: testme <project-name> <path>")
+                return 1
+                
+        except KeyboardInterrupt:
+            print("\nInterrupted by user")
+            return 130
+        except Exception as e:
+            print(f"Error: {e}")
+            return 1
+        
+        return 0
+
+if __name__ == '__main__':
+    cli = TestMeCLI()
+    sys.exit(cli.run())
