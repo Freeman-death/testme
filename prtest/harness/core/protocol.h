@@ -8,10 +8,9 @@ typedef enum { V_PASS=0, V_FAIL, V_CRASH, V_TIMEOUT, V_LEAK, V_MEMORY, V_WARN } 
 void reg_test(const char *name, void (*fn)(void), const char *file);
 #define TEST_CONCAT_(a, b) a ## b
 #define TEST_CONCAT(a, b) TEST_CONCAT_(a, b)
-/* Usage: define `static void my_test(void){...}` then `TEST("name", my_test);`
-   The constructor registers the already-defined function at load time. */
+/* Usage: define `static void my_test(void){...}` then `TEST("name", my_test);`\n   The constructor registers the already-defined function at load time. */
 #define TEST(name, fn) \
-    __attribute__((constructor)) static void _reg_##fn(void) { \
+    __attribute__((constructor)) void _reg_##fn(void) { \
         reg_test(name, fn, __FILE__); \
     }
 

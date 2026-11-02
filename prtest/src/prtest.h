@@ -7,7 +7,7 @@ typedef struct {
     const char *path;
     const char *project;
     const char *function;
-    int verbose, strict, json, no_color, keep_sandbox, list_only;
+    int verbose, strict, json, no_color, keep_sandbox, list_only, failed_only;
     int only_functional, only_leaks, only_alloc_fail, only_build;
     int probe_ub, stress, valgrind, sanitize;
     unsigned int seed;
@@ -33,5 +33,6 @@ void report_init(const Options *o, const ProjectInfo *info);
 void report_finish(const Options *o);
 void report_result(const Options *o, const char *func, const char *test, Verdict v, const char *detail);
 int  run_harness(const char *sandbox, const Options *o, const ProjectInfo *info);
+void results_parse(int fd, const Options *o, const ProjectInfo *info);
 
 #endif
