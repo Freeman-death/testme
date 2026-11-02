@@ -2,6 +2,10 @@
 # at runtime against the student's libft.a; this Makefile only builds prtest.
 CC      ?= cc
 CFLAGS  ?= -std=c11 -Wall -Wextra -Werror -O0 -g
+# Absolute path to the harness sources, baked in at build time so the
+# orchestrator can compile the harness against a sandboxed libft.a from
+# anywhere. $(CURDIR) is the prtest/ dir when make runs.
+CFLAGS  += -DPRTEST_HARNESS_DIR='"$(CURDIR)/harness"'
 SRC     := $(wildcard src/*.c)
 OBJ     := $(SRC:.c=.o)
 BIN     := prtest

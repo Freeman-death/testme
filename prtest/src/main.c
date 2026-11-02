@@ -4,6 +4,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifndef PRTEST_HARNESS_DIR
+#define PRTEST_HARNESS_DIR "harness"  /* fallback; Makefile bakes in the abs path */
+#endif
+
 static void usage(const char *prog) {
     fprintf(stderr,
         "Usage: %s [project] [path] [options]\n"
@@ -125,18 +129,22 @@ int cli_parse(int argc, char **argv, Options *o) {
 }
 
 static int compile_harness(const char *sandbox, const Options *o, char *harness_path, size_t hp_sz) {
-    char cmd[4096];
-    const char *harness_core = "/Users/macbook/Crafts/prtest-orch/prtest/harness/core";
-    const char *harness_libft = "/Users/macbook/Crafts/prtest-orch/prtest/harness/libft";
-    
+    char cmd[8192];
     snprintf(harness_path, hp_sz, "%s/harness", sandbox);
-    
+
+    /* Harness sources live in the prtest install dir (PRTEST_HARNESS_DIR,
+       baked in by the Makefile); we compile them against the sandbox's
+       libft.a. Glob every t_*.c suite and the ref/ oracles; -I ref/ for
+       the oracle headers. On macOS the strong-symbol malloc in alloc_wrap.c
+       needs no extra link flag. */
     snprintf(cmd, sizeof cmd,
         "cc -std=c11 -O0 -g -Wall -Wextra -Werror "
-        "-I%s "
-        "%s/*.c %s/t_ctype.c "
+        "-I%s/core -I%s/libft -I%s/libft/ref "
+        "%s/core/*.c %s/libft/t_*.c %s/libft/ref/*.c "
         "%s/libft.a -o %s 2>&1",
-        harness_core, harness_core, harness_libft, sandbox, harness_path);
+        PRTEST_HARNESS_DIR, PRTEST_HARNESS_DIR, PRTEST_HARNESS_DIR,
+        PRTEST_HARNESS_DIR, PRTEST_HARNESS_DIR, PRTEST_HARNESS_DIR,
+        sandbox, harness_path);
     
     if (o->verbose) {
         fprintf(stderr, "Compiling harness: %s\n", cmd);

@@ -21,9 +21,9 @@ static size_t g_live_blocks = 0;
 static size_t g_live_bytes = 0;
 static size_t g_calls = 0;
 static size_t g_fail_at = 0;
-static BlockInfo *g_blocks = NULL;
+#define AWRAP_MAX_BLOCKS 65536
+static BlockInfo g_blocks[AWRAP_MAX_BLOCKS];
 static size_t g_nblocks = 0;
-static size_t g_cap = 0;
 
 void awrap_install(void) {
     g_live_blocks = g_live_bytes = g_calls = g_fail_at = 0;
@@ -44,10 +44,7 @@ size_t awrap_live_blocks(void) { return g_live_blocks; }
 size_t awrap_live_bytes(void)  { return g_live_bytes; }
 
 static void track(void *user_ptr, size_t size, void *alloc_base) {
-    if (g_nblocks >= g_cap) {
-        g_cap = g_cap ? g_cap * 2 : 256;
-        g_blocks = realloc(g_blocks, g_cap * sizeof(BlockInfo));
-    }
+    if (g_nblocks >= AWRAP_MAX_BLOCKS) return; /* table full; stop tracking */
     g_blocks[g_nblocks++] = (BlockInfo){user_ptr, size, (size_t)alloc_base, 0};
     g_live_blocks++;
     g_live_bytes += size;
@@ -141,21 +138,22 @@ static void *w_realloc(void *ptr, size_t n) {
 }
 
 #if defined(__APPLE__)
-static void *w_malloc_sym(size_t n) { return w_malloc(n); }
-static void  w_free_sym(void *p) { w_free(p); }
-static void *w_calloc_sym(size_t a, size_t b) { return w_calloc(a, b); }
-static void *w_realloc_sym(void *b, size_t n) { return w_realloc(b, n); }
-
-__attribute__((used, section("__DATA,__interpose")))
-static const struct { const void *replacement; const void *replacee; } _interpose[] = {
-    { (const void *)w_malloc_sym,  (const void *)malloc  },
-    { (const void *)w_free_sym,    (const void *)free    },
-    { (const void *)w_calloc_sym,  (const void *)calloc  },
-    { (const void *)w_realloc_sym, (const void *)realloc },
-};
+/* Strong-symbol override. The linker binds malloc/free/calloc/realloc calls
+   from THIS executable and any statically-linked libft.a to these definitions;
+   libSystem's own internal calls stay bound to itself (two-level namespace),
+   giving the same scope as GNU ld --wrap on Linux. NOTE: __DATA,__interpose
+   does NOT fire for a main executable on modern macOS/dyld (verified on
+   macOS 26.5.1 / Apple clang 21), so we override the symbols directly.
+   The wrappers above use mmap/munmap only — no libc allocator calls — so
+   there is no recursion. */
+void *malloc(size_t n)           { return w_malloc(n); }
+void  free(void *p)              { w_free(p); }
+void *calloc(size_t a, size_t b) { return w_calloc(a, b); }
+void *realloc(void *p, size_t n) { return w_realloc(p, n); }
 #else
-#define w_malloc  __wrap_malloc
-#define w_free    __wrap_free
-#define w_calloc  __wrap_calloc
-#define w_realloc __wrap_realloc
+/* GNU ld: link with -Wl,--wrap=malloc -Wl,--wrap=free -Wl,--wrap=calloc -Wl,--wrap=realloc */
+void *__wrap_malloc(size_t n)           { return w_malloc(n); }
+void  __wrap_free(void *p)              { w_free(p); }
+void *__wrap_calloc(size_t a, size_t b) { return w_calloc(a, b); }
+void *__wrap_realloc(void *p, size_t n) { return w_realloc(p, n); }
 #endif

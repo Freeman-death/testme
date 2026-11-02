@@ -80,38 +80,6 @@ static void test_tolower_exhaustive(void) {
     }
 }
 
-static void test_strlen_basic(void) {
-    EXPECT_EQ("strlen empty", ft_strlen(""), 0);
-    EXPECT_EQ("strlen a", ft_strlen("a"), 1);
-    EXPECT_EQ("strlen hello", ft_strlen("hello"), 5);
-}
-
-static void test_strlen_alignment_edges(void) {
-    char buf[512];
-    for (size_t i = 0; i < sizeof(buf); i++) buf[i] = 'x';
-    for (size_t len = 0; len <= 300; len++) {
-        buf[len] = '\0';
-        EXPECT_EQ("strlen alignment", ft_strlen(buf), len);
-        buf[len] = 'x';
-    }
-    for (size_t len = 4090; len <= 4096; len++) {
-        if (len < sizeof(buf)) {
-            buf[len] = '\0';
-            EXPECT_EQ("strlen page edge", ft_strlen(buf), len);
-            buf[len] = 'x';
-        }
-    }
-}
-
-static void test_strlen_guard_page(void) {
-    Gbuf g = gbuf_new(100);
-    if (!g.base) return;
-    for (size_t i = 0; i < 100; i++) g.base[i] = 'a';
-    g.base[50] = '\0';
-    EXPECT_EQ("strlen guard page", ft_strlen(g.base), 50);
-    gbuf_free(g);
-}
-
 TEST("ft_isalpha exhaustive", test_isalpha_exhaustive);
 TEST("ft_isdigit exhaustive", test_isdigit_exhaustive);
 TEST("ft_isalnum exhaustive", test_isalnum_exhaustive);
@@ -119,6 +87,3 @@ TEST("ft_isascii exhaustive", test_isascii_exhaustive);
 TEST("ft_isprint exhaustive", test_isprint_exhaustive);
 TEST("ft_toupper exhaustive", test_toupper_exhaustive);
 TEST("ft_tolower exhaustive", test_tolower_exhaustive);
-TEST("ft_strlen basic", test_strlen_basic);
-TEST("ft_strlen alignment edges", test_strlen_alignment_edges);
-TEST("ft_strlen guard page", test_strlen_guard_page);
