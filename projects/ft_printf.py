@@ -253,7 +253,9 @@ if [ ! -f ft_printf.h ]; then
 fi
 
 # -Wno-format-security: the harness legitimately tests a non-literal empty format
-FLAGS="-Wall -Wextra -Werror -Wno-format-security -I. -I$HDR_DIR"
+# -no-pie: student Makefiles typically compile without -fPIE, and non-PIC
+# objects in a static archive cannot link into a PIE executable
+FLAGS="-Wall -Wextra -Werror -Wno-format-security -no-pie -I. -I$HDR_DIR"
 if [ "$MODE" = "asan" ]; then
     FLAGS="$FLAGS -g -fsanitize=address,leak"
     echo "🧪 Running with AddressSanitizer/LeakSanitizer"
