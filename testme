@@ -140,7 +140,7 @@ class TestMeCLI:
                 check=True
             )
             matches = [d for d in Path(tmp_dir).iterdir()
-                       if d.is_dir() and d.name.endswith("-testme-main")]
+                       if d.is_dir() and "-testme-" in d.name]
             if not matches:
                 print("❌ Update failed: could not locate extracted repository")
                 return 1
