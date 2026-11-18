@@ -10,12 +10,31 @@ ARCH=$(uname -m)
 
 echo "Installing TestMe CLI..."
 
-# Create bin directory
-mkdir -p "$HOME/.local/bin"
+# Create bin and data directories
+mkdir -p "$HOME/.local/bin" "$HOME/.local/share/testme"
 
-# Download testme script (use API to avoid caching issues)
-curl -sSL "https://api.github.com/repos/AyoubMzian-Dev/testme/contents/testme?ref=main" | python3 -c "import sys,json,base64; d=json.load(sys.stdin); open('$HOME/.local/bin/testme','wb').write(base64.b64decode(d['content']))"
+# Download the repository tarball (gets both the CLI and the per-project test suites)
+TMP_DIR=$(mktemp -d)
+curl -sSL "https://api.github.com/repos/AyoubMzian-Dev/testme/tarball/main" -o "$TMP_DIR/testme.tar.gz"
+tar -xzf "$TMP_DIR/testme.tar.gz" -C "$TMP_DIR"
+
+# Locate the extracted directory (named <owner>-<repo>-<ref>)
+SRC_DIR=$(find "$TMP_DIR" -maxdepth 1 -type d -name "AyoubMzian-Dev-testme-*" | head -n1)
+if [ -z "$SRC_DIR" ]; then
+    echo "❌ Failed to download TestMe repository"
+    rm -rf "$TMP_DIR"
+    exit 1
+fi
+
+# Install the CLI
+cp "$SRC_DIR/testme" "$HOME/.local/bin/testme"
 chmod +x "$HOME/.local/bin/testme"
+
+# Install per-project test suites (projects/ contains one file per project)
+rm -rf "$HOME/.local/share/testme/projects"
+cp -r "$SRC_DIR/projects" "$HOME/.local/share/testme/projects"
+
+rm -rf "$TMP_DIR"
 
 # Add to PATH if not already there
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
