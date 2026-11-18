@@ -1,6 +1,6 @@
 #!/bin/bash
 # TestMe CLI Installer
-# Usage: curl -sSL https://raw.githubusercontent.com/AyoubMzian-Dev/testme/main/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/Freeman-death/testme/main/install.sh | bash
 
 set -e
 
@@ -13,13 +13,15 @@ echo "Installing TestMe CLI..."
 # Create bin and data directories
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/testme"
 
+REPO="Freeman-death/testme"
+
 # Download the repository tarball (gets both the CLI and the per-project test suites)
 TMP_DIR=$(mktemp -d)
-curl -sSL "https://api.github.com/repos/AyoubMzian-Dev/testme/tarball/main" -o "$TMP_DIR/testme.tar.gz"
+curl -sSL "https://api.github.com/repos/${REPO}/tarball/main" -o "$TMP_DIR/testme.tar.gz"
 tar -xzf "$TMP_DIR/testme.tar.gz" -C "$TMP_DIR"
 
 # Locate the extracted directory (named <owner>-<repo>-<ref>)
-SRC_DIR=$(find "$TMP_DIR" -maxdepth 1 -type d -name "AyoubMzian-Dev-testme-*" | head -n1)
+SRC_DIR=$(find "$TMP_DIR" -maxdepth 1 -type d -name "*-testme-*" | head -n1)
 if [ -z "$SRC_DIR" ]; then
     echo "❌ Failed to download TestMe repository"
     rm -rf "$TMP_DIR"

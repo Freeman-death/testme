@@ -22,6 +22,7 @@ import sys
 import os
 import argparse
 import importlib.util
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -123,27 +124,40 @@ class TestMeCLI:
 
     def update(self) -> int:
         print("🔄 Updating TestMe CLI...")
+        tmp_dir = "/tmp/testme_update"
         try:
-            result = subprocess.run(
+            # Download the repo tarball to refresh both the CLI and projects/
+            subprocess.run(
                 ["curl", "-sSL",
-                 "https://api.github.com/repos/AyoubMzian-Dev/testme/contents/testme?ref=main",
-                 "-o", "/tmp/testme_api.json"],
-                capture_output=True, text=True
+                 "https://api.github.com/repos/Freeman-death/testme/tarball/main",
+                 "-o", f"{tmp_dir}.tar.gz"],
+                check=True
             )
-            if result.returncode == 0:
-                import json, base64
-                with open("/tmp/testme_api.json") as f:
-                    d = json.load(f)
-                with open("/tmp/testme_new", "wb") as f:
-                    f.write(base64.b64decode(d["content"]))
-                import shutil
-                target = os.path.expanduser("~/.local/bin/testme")
-                shutil.move("/tmp/testme_new", target)
-                os.chmod(target, 0o755)
-                print("✅ TestMe updated successfully!")
-                return 0
-            print(f"❌ Update failed: {result.stderr}")
-            return 1
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            os.makedirs(tmp_dir)
+            subprocess.run(
+                ["tar", "-xzf", f"{tmp_dir}.tar.gz", "-C", tmp_dir],
+                check=True
+            )
+            matches = [d for d in Path(tmp_dir).iterdir()
+                       if d.is_dir() and d.name.endswith("-testme-main")]
+            if not matches:
+                print("❌ Update failed: could not locate extracted repository")
+                return 1
+            src = matches[0]
+            target = os.path.expanduser("~/.local/bin/testme")
+            shutil.copy(src / "testme", target)
+            os.chmod(target, 0o755)
+            # Refresh per-project test suites
+            projects_src = src / "projects"
+            if projects_src.is_dir():
+                projects_dst = Path.home() / ".local/share/testme/projects"
+                shutil.rmtree(projects_dst, ignore_errors=True)
+                shutil.copytree(projects_src, projects_dst)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            os.remove(f"{tmp_dir}.tar.gz")
+            print("✅ TestMe updated successfully!")
+            return 0
         except Exception as e:
             print(f"❌ Update failed: {e}")
             return 1

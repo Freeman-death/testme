@@ -20,14 +20,14 @@ defines a `ProjectTest` subclass - the CLI discovers it automatically.
 ### Quick Install (One Command)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/AyoubMzian-Dev/testme/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Freeman-death/testme/main/install.sh | bash
 ```
 
 ### Manual Install
 
 ```bash
 # Clone the repository
-git clone https://github.com/AyoubMzian-Dev/testme.git
+git clone https://github.com/Freeman-death/testme.git
 cd testme
 
 # Make executable
